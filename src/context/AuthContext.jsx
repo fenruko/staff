@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { api, getToken, setToken } from "../lib/api";
 
 const AuthContext = createContext(null);
@@ -6,6 +6,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const retryTimer = useRef(null);
 
   const refresh = useCallback(async () => {
     if (!getToken()) {
@@ -16,8 +17,11 @@ export function AuthProvider({ children }) {
     try {
       const me = await api.me();
       setUser({ id: me.id, username: me.username, role: me.role, permissions: me.permissions || [] });
-    } catch {
+    } catch (e) {
       setUser(null);
+      // Backend unreachable (not a 401): keep the stored token and quietly
+      // retry so the session restores itself once the backend is back.
+      if (e?.network) retryTimer.current = setTimeout(() => refresh(), 10000);
     } finally {
       setLoading(false);
     }
@@ -25,6 +29,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     refresh();
+    return () => clearTimeout(retryTimer.current);
   }, [refresh]);
 
   const login = async (username, password, totp_code) => {

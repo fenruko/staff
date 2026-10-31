@@ -18,7 +18,27 @@ class ApiError extends Error {
   }
 }
 
-async function request(path, { method = "GET", body, params } = {}) {
+// When the backend can't be reached at all (home PC asleep, router reconnect,
+// Tailscale down) the browser logs a red "CORS request did not succeed" error
+// for every attempt. After a network failure we pause outgoing requests for a
+// growing cooldown and fail them locally instead, so the console isn't flooded
+// and the backend isn't hammered the moment it comes back.
+let networkFailures = 0;
+let backendDownUntil = 0;
+
+function backendUnreachableError() {
+  const err = new ApiError("Can't reach the Rift backend right now. Retrying shortly.", 0, null);
+  err.network = true;
+  return err;
+}
+
+export function isBackendDown() {
+  return Date.now() < backendDownUntil;
+}
+
+async function request(path, { method = "GET", body, params, force = false } = {}) {
+  if (!force && isBackendDown()) throw backendUnreachableError();
+
   let url = `${API_BASE}${path}`;
   if (params) {
     const qs = new URLSearchParams(
@@ -31,11 +51,20 @@ async function request(path, { method = "GET", body, params } = {}) {
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    networkFailures += 1;
+    backendDownUntil = Date.now() + Math.min(2000 * 2 ** (networkFailures - 1), 60000);
+    throw backendUnreachableError();
+  }
+  networkFailures = 0;
+  backendDownUntil = 0;
 
   let data = null;
   try {
@@ -54,7 +83,7 @@ async function request(path, { method = "GET", body, params } = {}) {
 export const api = {
   // auth
   login: (username, password, totp_code) =>
-    request("/api/exec/login", { method: "POST", body: { username, password, totp_code } }),
+    request("/api/exec/login", { method: "POST", body: { username, password, totp_code }, force: true }),
   logout: () => request("/api/exec/logout", { method: "POST" }),
   me: () => request("/api/exec/me"),
 
