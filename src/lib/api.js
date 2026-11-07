@@ -87,19 +87,7 @@ export const api = {
   logout: () => request("/api/exec/logout", { method: "POST" }),
   me: () => request("/api/exec/me"),
 
-  // ban appeals -- public flow is unauthenticated (ID verify -> OTP -> submit)
-  lookupAppealUser: (user_id) => request("/api/appeals/lookup", { method: "POST", body: { user_id } }),
-  sendAppealOtp: (user_id) => request("/api/appeals/send-otp", { method: "POST", body: { user_id } }),
-  verifyAppealOtp: (user_id, code) => request("/api/appeals/verify-otp", { method: "POST", body: { user_id, code } }),
-  uploadAppealImage: (verify_token, image) => request("/api/appeals/upload", { method: "POST", body: { verify_token, image } }),
-  submitAppeal: (payload) => request("/api/appeals/submit", { method: "POST", body: payload }),
-
-  getAppealThread: (token) => request(`/api/appeals/thread/${token}`),
-  postAppealThreadMessage: (token, text, attachment_ids) =>
-    request(`/api/appeals/thread/${token}/message`, { method: "POST", body: { text, attachment_ids } }),
-  uploadThreadImage: (token, image) =>
-    request(`/api/appeals/thread/${token}/upload`, { method: "POST", body: { image } }),
-
+  // Users appeal blacklists on the dashboard (dash.rift.cool/appeals); staff only review them below.
   resolveUsers: (ids) => request(`/api/exec/users/resolve`, { params: { ids: ids.join(",") } }),
   listAppeals: (status) => request("/api/exec/appeals", { params: { status } }),
   getAppeal: (id) => request(`/api/exec/appeals/${id}`),
@@ -229,11 +217,8 @@ export function connectExecSocket(onMessage, onStatus) {
 
 // Builds a URL for an appeal attachment image. <img> tags can't send an
 // Authorization header, so staff view needs the session token as a query
-// param; the public thread view uses the appeal's own share token instead.
-export function attachmentUrl(id, { threadToken } = {}) {
-  if (threadToken) {
-    return `${API_BASE}/api/appeals/attachments/${id}?token=${encodeURIComponent(threadToken)}`;
-  }
+// param.
+export function attachmentUrl(id) {
   const staffToken = getToken();
   return `${API_BASE}/api/appeals/attachments/${id}${staffToken ? `?staff_token=${encodeURIComponent(staffToken)}` : ""}`;
 }

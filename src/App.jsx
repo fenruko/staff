@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/Layout";
 import RequirePermission from "./components/RequirePermission";
@@ -11,7 +11,6 @@ const ModerationPage = lazy(() => import("./pages/ModerationPage"));
 const TicketsPage = lazy(() => import("./pages/TicketsPage"));
 const AppealsPage = lazy(() => import("./pages/AppealsPage"));
 const BugReportsPage = lazy(() => import("./pages/BugReportsPage"));
-const AppealThreadPage = lazy(() => import("./pages/AppealThreadPage"));
 const BlacklistPage = lazy(() => import("./pages/BlacklistPage"));
 const VoicePage = lazy(() => import("./pages/VoicePage"));
 const VerificationPage = lazy(() => import("./pages/VerificationPage"));
@@ -20,6 +19,16 @@ const GuildsPage = lazy(() => import("./pages/GuildsPage"));
 const LogsPage = lazy(() => import("./pages/LogsPage"));
 const BotControlPage = lazy(() => import("./pages/BotControlPage"));
 const StaffPage = lazy(() => import("./pages/StaffPage"));
+
+// Appeals moved to the dashboard; keep thread links from earlier DMs working.
+const DASHBOARD_URL = (import.meta.env.VITE_DASHBOARD_URL || "https://dash.rift.cool").replace(/\/+$/, "");
+function LegacyAppealRedirect() {
+  const { token } = useParams();
+  React.useEffect(() => {
+    window.location.replace(`${DASHBOARD_URL}/appeals/thread/${encodeURIComponent(token || "")}`);
+  }, [token]);
+  return <div className="min-h-screen bg-panel flex items-center justify-center text-white/50" role="status">Taking you to the appeal page…</div>;
+}
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -35,7 +44,7 @@ export default function App() {
         <Suspense fallback={<div className="min-h-screen bg-panel flex items-center justify-center text-white/50" role="status">Loading workspace…</div>}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/appeal/:token" element={<AppealThreadPage />} />
+          <Route path="/appeal/:token" element={<LegacyAppealRedirect />} />
 
           <Route path="/" element={<Protected><RequirePermission permission="overview.view"><OverviewPage /></RequirePermission></Protected>} />
           <Route path="/economy" element={<Protected><RequirePermission permission="economy.view"><EconomyPage /></RequirePermission></Protected>} />
