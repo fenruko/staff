@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "https://desktop-mo3r1pj.tailb9e0a9.ts.net";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://api.rift.cool";
 const TOKEN_KEY = "rift_staff_token";
 
 export function getToken() {
@@ -18,8 +18,8 @@ class ApiError extends Error {
   }
 }
 
-// When the backend can't be reached at all (home PC asleep, router reconnect,
-// Tailscale down) the browser logs a red "CORS request did not succeed" error
+// When the backend can't be reached at all (server restarting, network blip,
+// DNS issue) the browser logs a red "CORS request did not succeed" error
 // for every attempt. After a network failure we pause outgoing requests for a
 // growing cooldown and fail them locally instead, so the console isn't flooded
 // and the backend isn't hammered the moment it comes back.
