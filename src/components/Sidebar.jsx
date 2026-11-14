@@ -117,6 +117,11 @@ export default function Sidebar({ open, onClose }) {
             </span>
           </NavLink>
         ))}
+        {hasPermission("blog.post") && (
+          <a className="nav-item" href="https://rift.cool/blog/new" target="_blank" rel="noopener noreferrer">
+            <span className="flex items-center gap-3"><Icon name="message" size={17} />Write a blog post</span>
+          </a>
+        )}
       </nav>
 
       <div className="sidebar-profile"><span className="avatar">{user?.username?.slice(0, 2).toUpperCase()}</span><div><div className="text-sm text-white/90">{user?.username}</div><div className="text-xs text-white/40">{user?.role || 'Staff member'}</div></div></div>
