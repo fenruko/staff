@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import ConfirmModal from "../components/ConfirmModal";
 import MemberSearchInput from "../components/MemberSearchInput";
 import DonutChart from "../components/DonutChart";
+import { isOwnerAccount, keepsStaffManagement } from "../lib/owner";
 
 function PermissionEditor({ catalog, selected, onChange, disabled }) {
   const isFullAccess = selected.includes("*");
@@ -73,6 +74,9 @@ function StaffFormModal({ catalog, existing, currentUser, onClose, onSaved }) {
 
   const isEdit = !!existing;
   const isSelf = isEdit && currentUser && existing.id === currentUser.id;
+  // Everyone else is locked out of their own permissions; the owner is not.
+  const isOwnerSelf = isSelf && isOwnerAccount(currentUser);
+  const permissionsLocked = isSelf && !isOwnerSelf;
   const isSuperuser = (currentUser?.permissions || []).includes("*");
   // Can only grant permissions you hold yourself -- mirrors the server-side
   // check, so the UI doesn't even offer options that would just get 403'd.
@@ -85,8 +89,13 @@ function StaffFormModal({ catalog, existing, currentUser, onClose, onSaved }) {
     setSaving(true);
     try {
       if (isEdit) {
+        if (isOwnerSelf && !keepsStaffManagement(permissions)) {
+          setError("Keep Full access or staff.manage on your own account, or you'd lock yourself out of this page.");
+          setSaving(false);
+          return;
+        }
         const payload = { role, discord_id: discordId };
-        if (!isSelf) payload.permissions = permissions; // self edits never send permissions
+        if (!permissionsLocked) payload.permissions = permissions; // only the owner may send their own permissions
         if (password) payload.password = password;
         await api.updateStaff(existing.id, payload);
       } else {
@@ -154,10 +163,15 @@ function StaffFormModal({ catalog, existing, currentUser, onClose, onSaved }) {
 
         <div className="mb-4">
           <label className="text-white/40 text-xs block mb-2">Permissions</label>
-          <PermissionEditor catalog={grantableCatalog} selected={permissions} onChange={setPermissions} disabled={isSelf} />
-          {isSelf && (
+          <PermissionEditor catalog={grantableCatalog} selected={permissions} onChange={setPermissions} disabled={permissionsLocked} />
+          {permissionsLocked && (
             <p className="text-xs text-amber-400/80 mt-1">
               You can't edit your own permissions — ask another staff.manage holder.
+            </p>
+          )}
+          {isOwnerSelf && (
+            <p className="text-xs text-white/40 mt-1">
+              You're the owner, so you can edit your own permissions. Keep Full access or staff.manage so you don't lock yourself out.
             </p>
           )}
         </div>
