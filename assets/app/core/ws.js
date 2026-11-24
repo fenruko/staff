@@ -41,7 +41,9 @@ function open() {
       retry = Math.min(retry * 2, 30000);
     }
   };
-  ws.onerror = () => ws.close();
+  // A failed socket always fires `close` next, which reschedules the reconnect.
+  // Calling ws.close() here re-fires `error` on some runtimes and recurses forever.
+  ws.onerror = () => {};
 }
 
 export function connectExecSocket(onMessage, onStatus) {

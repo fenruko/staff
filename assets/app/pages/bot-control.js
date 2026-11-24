@@ -34,7 +34,7 @@ export default function botControl(ctx) {
         { key: "cogs", label: "Cogs", sortable: false, render: (e) => (e.cogs || []).join(", ") || "—" },
         { key: "loaded", label: "State", value: (e) => (e.loaded ? 1 : 0), render: (e) => h("span", null, badge(e.loaded ? "Loaded" : "Unloaded", e.loaded ? "success" : "neutral"), e.protected ? [" ", badge("Protected", "warning")] : null) },
         { key: "_a", label: "", sortable: false, align: "right", render: (e) => h("div", { class: "row end" },
-          e.loaded ? btn("Reload", { sm: true, disabled: busy.has(e.name), onClick: () => act(e, "reload") }) : btn("Load", { sm: true, variant: "primary", disabled: busy.has(e.name), onClick: () => act(e, "load") }),
+          e.loaded ? btn("Reload", { sm: true, disabled: busy.has(e.name) || e.protected, title: e.protected ? "Protected extension" : null, onClick: () => act(e, "reload") }) : btn("Load", { sm: true, variant: "primary", disabled: busy.has(e.name) || e.protected, onClick: () => act(e, "load") }),
           e.loaded ? btn("Unload", { sm: true, variant: "danger-ghost", disabled: busy.has(e.name) || e.protected, title: e.protected ? "Protected extension" : null, onClick: () => act(e, "unload") }) : null) }] }));
     }
     async function fetchExts() {

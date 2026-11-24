@@ -183,7 +183,7 @@ export function createMock() {
     "POST /api/exec/bot/cogs/": ({ path }) => {
       const [, , , , , , name, action] = path.split("/");
       const e = db.ext.find((x) => x.name === name) || bad(`Extension ${name} not found`, 404);
-      if (action === "unload" && e.protected) bad(`${name} is protected and cannot be unloaded`, 403);
+      if (e.protected) bad(`'${name}' hosts this API and can't be ${action}ed from it`, 400);
       if (action === "load" && e.loaded) bad(`${name} is already loaded`);
       if ((action === "unload" || action === "reload") && !e.loaded) bad(`${name} is not loaded`);
       if (action === "unload") e.loaded = false; else e.loaded = true;
