@@ -16,7 +16,8 @@ export function pageHead(title, { sub, actions } = {}) {
     actions ? h("div", { class: "page-actions" }, actions) : null);
 }
 
-export function card(title, { sub, actions, class: cls } = {}, ...body) {
+export function card(title, opts, ...body) {
+  const { sub, actions, class: cls } = opts && !(opts instanceof Node) && !Array.isArray(opts) ? opts : (body.unshift(opts), {});
   return h("section", { class: ["card", cls] },
     title || actions ? h("div", { class: "card-head" },
       h("div", null, title ? h("h2", { class: "card-title" }, title) : null, sub ? h("p", { class: "card-sub" }, sub) : null),
