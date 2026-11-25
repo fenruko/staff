@@ -134,9 +134,11 @@ export function createMock() {
     "GET /api/exec/mod/user": ({ q }) => {
       const id = q.get("q");
       if (!id) bad("Query required");
-      return { user: { id, name: nameFor(id), username: nameFor(id), avatar: null, is_banned: false, timed_out: false }, guild_id: G[0].id, guild_name: G[0].name, warn_count: 3, warnings: Array.from({ length: 3 }, (_, i) => ({ id: i, reason: pick(["Spam", "Slurs", "Mini-modding"]), moderator: pick(["mira", "atlas"]) })) };
+      const mutual = G.slice(0, 3).map((g) => ({ id: g.id, name: g.name, icon: null, member_count: g.member_count || 0 }));
+      const g = G.find((x) => x.id === q.get("guild_id")) || G[0];
+      return { user: { id, name: nameFor(id), username: nameFor(id), avatar: null, is_banned: false, timed_out: false }, guild_id: g.id, guild_name: g.name, mutual_guilds: mutual, warn_count: 3, warnings: Array.from({ length: 3 }, (_, i) => ({ id: i, reason: pick(["Spam", "Slurs", "Mini-modding"]), moderator: pick(["mira", "atlas"]) })) };
     },
-    "POST /api/exec/mod/action": ({ body }) => { audit("demo_admin", `mod.${body.action}`, `user ${body.target}`); return { status: `${body.action} dispatched to ${G[0].name}` }; },
+    "POST /api/exec/mod/action": ({ body }) => { audit("demo_admin", `mod.${body.action}`, `user ${body.target}`); return { status: `${body.action} dispatched to ${(G.find((x) => x.id === body.guild_id) || G[0]).name}` }; },
     "GET /api/exec/tickets": () => ({ tickets: { open: 14, closed: 892, avg_resolution_seconds: 3720 }, modmail: { open: 5, total: 318 }, reports: { total: 128, by_status: { open: 9, resolved: 101, rejected: 18 } } }),
     "GET /api/exec/appeals": ({ q }) => db.appeals.filter((a) => !q.get("status") || a.status === q.get("status")).map(({ messages, ...r }) => r),
     "GET /api/exec/appeals/": ({ path }) => db.appeals.find((a) => a.id === apId(path)) || bad("Not found", 404),

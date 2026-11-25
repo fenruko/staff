@@ -156,3 +156,28 @@ test("table: >200 rows paginate at 100 per page; sorting toggles aria-sort", asy
   t.querySelector(".th-btn").click();
   assert.equal(t.querySelector("th").getAttribute("aria-sort"), "ascending");
 });
+
+test("moderation lookup: shows shared servers and moderates in the chosen one", async () => {
+  const { calls } = installMock();
+  const { root, scope } = await mountRoute(pages.find((r) => r.id === "moderation"));
+  const input = [...root.querySelectorAll("input")].find((i) => !i.getAttribute("aria-label")?.includes("Reason"));
+  input.value = "123456789012345678";
+  input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  await flush(); await flush();
+  const sel = root.querySelector('select[aria-label="Server to moderate in"]');
+  assert.ok(sel, "server picker rendered");
+  assert.ok(sel.options.length >= 2, "lists the shared servers");
+  const second = sel.options[1].value;
+  sel.value = second;
+  sel.dispatchEvent(new window.Event("change", { bubbles: true }));
+  await flush(); await flush();
+  assert.ok(calls.some((c) => c.url.includes("/api/exec/mod/user") && c.url.includes(`guild_id=${second}`)), "re-queried with chosen server");
+  const warn = [...root.querySelectorAll("button")].find((b) => b.textContent.trim() === "Warn");
+  warn.click();
+  await flush();
+  const post = calls.find((c) => c.method === "POST" && c.url.endsWith("/api/exec/mod/action"));
+  assert.ok(post, "action posted");
+  assert.equal(String((typeof post.body === "string" ? JSON.parse(post.body) : post.body).guild_id), String(second));
+  scope.dispose();
+});

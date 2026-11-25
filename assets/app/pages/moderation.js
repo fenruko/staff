@@ -1,6 +1,6 @@
 import { h, mount } from "../core/dom.js";
 import { api } from "../core/api.js";
-import { pageHead, card, stat, statGrid, grid2, asyncView, btn, input, badge, segmented, toast, avatar, kv, empty } from "../ui/components.js";
+import { pageHead, card, stat, statGrid, grid2, asyncView, btn, input, badge, segmented, select, toast, avatar, kv, empty } from "../ui/components.js";
 import { barList, donut, stackedBars } from "../ui/charts.js";
 import { dataTable } from "../ui/table.js";
 import { memberInput } from "../ui/member-input.js";
@@ -14,29 +14,39 @@ const who = (id) => (isSnowflake(id) ? userLabel(id) : h("span", { class: "who" 
 
 function lookupCard(ctx) {
   let profile = null;
+  let guildId; // server chosen by staff; undefined = the bot's default match
+  let subject = "";
   const out = h("div", { class: "stack" });
   const notice = h("p", { class: "status-line", role: "status" });
   const picker = memberInput({ signal: ctx.signal });
   const reason = input({ placeholder: "Reason", "aria-label": "Reason" });
   const say = (ok, t) => { notice.textContent = t; notice.className = `status-line ${ok ? "ok" : "bad"}`; };
 
-  async function lookup() {
-    const q = picker.get();
+  async function lookup(fresh = true) {
+    const q = fresh ? picker.get() : subject;
     if (!q) return;
-    try { profile = await api.modUserLookup(q, undefined, { signal: ctx.signal }); notice.textContent = ""; draw(); }
+    if (fresh) { subject = q; guildId = undefined; }
+    try { profile = await api.modUserLookup(q, guildId, { signal: ctx.signal }); guildId = profile.guild_id; notice.textContent = ""; draw(); }
     catch (e) { if (e.name === "AbortError") return; profile = null; say(false, e.message); mount(out); }
   }
   async function act(action) {
     try {
       const r = await api.modAction({ guild_id: profile.guild_id, action, target: profile.user.id, reason: reason.value.trim() || "No reason provided" }, { signal: ctx.signal });
-      say(true, `${action}: ${r.status}`); reason.value = ""; lookup();
+      say(true, `${action}: ${r.status}`); reason.value = ""; lookup(false);
     } catch (e) { if (e.name !== "AbortError") say(false, e.message); }
+  }
+  function serverRow() {
+    const list = profile.mutual_guilds || [];
+    if (!list.length) return h("p", { class: "muted small" }, "Not in any server the bot shares.");
+    const sel = select(list.map((g) => [g.id, g.name]), { value: String(profile.guild_id), "aria-label": "Server to moderate in", onChange: () => { guildId = sel.value; lookup(false); } });
+    return h("div", { class: "field" }, h("label", { class: "field-label" }, `Moderate in (${list.length} shared server${list.length === 1 ? "" : "s"})`), sel);
   }
   function draw() {
     const u = profile.user;
     mount(out,
       h("div", { class: "who-row" }, avatar(u.avatar, u.name), h("div", null, h("strong", null, u.name), " ", h("span", { class: "muted" }, `@${u.username}`),
         h("div", { class: "muted small" }, `${profile.guild_name} · ${profile.warn_count} warns`, u.is_banned ? badge("banned", "danger") : null, u.timed_out ? badge("timed out", "warning") : null))),
+      serverRow(),
       reason,
       h("div", { class: "row" }, ACTIONS.filter(([, , p]) => ctx.can(p)).map(([k, l]) => btn(l, { variant: k === "ban" || k === "kick" ? "danger" : "primary", onClick: () => act(k) }))),
       (profile.warnings || []).length ? h("div", null, h("h3", { class: "sub-title" }, "Recent warnings"), h("ul", { class: "plain" }, profile.warnings.slice(0, 5).map((w) => h("li", { class: "note" }, w.reason, h("span", { class: "muted" }, ` by ${w.moderator}`))))) : null);
